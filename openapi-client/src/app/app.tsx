@@ -1,36 +1,44 @@
 import { useState } from 'react';
-import Navbar from "@/shared/components/navbar"
+import Navbar from "@/shared/components/navbar/navbar"
 import RequestPanel from '@/shared/components/RequestBuilder/RequestPanel';
 import ResponsePanel from '@/shared/components/ResponseBuilder/ResponsePanel';
+import SidebarHistory from '@/shared/components/Sidebar/SidebarHistory';
+import AuthModal from '@/shared/components/Auth/AuthModal';
+import { useAuth } from '@/shared/contexts/AuthContext';
 
 function App() {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  
+  // Lifted state for the active request
+  const [method, setMethod] = useState<any>('GET');
+  const [url, setUrl] = useState('');
+
+  const handleHistoryClick = (item: any) => {
+    setMethod(item.method);
+    setUrl(item.url);
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white selection:bg-blue-500/30 flex flex-col">
-      <Navbar />
+      <Navbar onAuthClick={() => setAuthModalOpen(true)} />
 
       <main className="flex-1 flex overflow-hidden">
         {/* SIDEBAR (HISTORY / COLLECTIONS) */}
-        <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-gray-900/20 border-r border-gray-800 transition-all duration-300 overflow-hidden flex flex-col`}>
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+        <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-gray-900 border-r border-gray-800 transition-all duration-300 overflow-hidden flex flex-col`}>
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-950/20">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">History</h2>
-            <button className="text-gray-500 hover:text-blue-400 transition-colors">
+            <button className={`${!user ? 'opacity-0 pointer-events-none' : ''} text-gray-500 hover:text-blue-400 transition-colors`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
               </svg>
             </button>
           </div>
-          <div className="flex-1 p-4">
-             <div className="text-center py-10 opacity-30">
-                <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-xs">No history yet</p>
-             </div>
-          </div>
+          
+          <SidebarHistory onItemClick={handleHistoryClick} />
         </aside>
 
         {/* WORKSPACE */}
@@ -49,7 +57,15 @@ function App() {
 
            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
               <div className="flex-1 h-full">
-                <RequestPanel onResponse={setResponse} loading={loading} setLoading={setLoading} />
+                <RequestPanel 
+                  onResponse={setResponse} 
+                  loading={loading} 
+                  setLoading={setLoading}
+                  method={method}
+                  setMethod={setMethod}
+                  url={url}
+                  setUrl={setUrl}
+                />
               </div>
               <div className="flex-1 h-full">
                 <ResponsePanel response={response} />
@@ -57,6 +73,8 @@ function App() {
            </div>
         </section>
       </main>
+
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   );
 }

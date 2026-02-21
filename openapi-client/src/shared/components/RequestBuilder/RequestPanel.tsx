@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/shared/contexts/AuthContext';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 
@@ -6,11 +7,22 @@ interface RequestPanelProps {
   onResponse: (response: any) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  method: HttpMethod;
+  setMethod: (method: HttpMethod) => void;
+  url: string;
+  setUrl: (url: string) => void;
 }
 
-export default function RequestPanel({ onResponse, loading, setLoading }: RequestPanelProps) {
-  const [method, setMethod] = useState<HttpMethod>('GET');
-  const [url, setUrl] = useState('');
+export default function RequestPanel({ 
+  onResponse, 
+  loading, 
+  setLoading,
+  method,
+  setMethod,
+  url,
+  setUrl
+}: RequestPanelProps) {
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body'>('params');
   const [body, setBody] = useState('');
 
@@ -44,6 +56,7 @@ export default function RequestPanel({ onResponse, loading, setLoading }: Reques
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           method,
