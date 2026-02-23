@@ -10,9 +10,10 @@ interface HistoryItem {
 
 interface SidebarHistoryProps {
   onItemClick: (item: any) => void;
+  onAuthClick: () => void;
 }
 
-export default function SidebarHistory({ onItemClick }: SidebarHistoryProps) {
+export default function SidebarHistory({ onItemClick, onAuthClick }: SidebarHistoryProps) {
   const { token, user } = useAuth();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +53,12 @@ export default function SidebarHistory({ onItemClick }: SidebarHistoryProps) {
            </svg>
         </div>
         <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Login to view history</p>
+        <button 
+          onClick={onAuthClick}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-all text-xs font-bold uppercase tracking-tight"
+        >
+          Login / Sign Up
+        </button>
       </div>
     );
   }
@@ -78,10 +85,14 @@ export default function SidebarHistory({ onItemClick }: SidebarHistoryProps) {
               onClick={() => onItemClick(item)}
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800/50 transition-all group text-left border border-transparent hover:border-gray-800"
             >
-              <span className={`text-[10px] font-bold w-10 text-center py-0.5 rounded ${
-                item.method === 'GET' ? 'text-green-400 bg-green-400/10' :
-                item.method === 'POST' ? 'text-yellow-400 bg-yellow-400/10' :
-                'text-blue-400 bg-blue-400/10'
+              <span className={`text-[10px] font-bold w-12 flex-shrink-0 text-left py-0.5 ${
+                item.method === 'GET' ? 'text-green-400' :
+                item.method === 'POST' ? 'text-yellow-400' :
+                item.method === 'PUT' ? 'text-blue-400' :
+                item.method === 'PATCH' ? 'text-purple-400' :
+                item.method === 'DELETE' ? 'text-red-400' :
+                item.method === 'HEAD' ? 'text-gray-400' :
+                'text-cyan-400'
               }`}>
                 {item.method}
               </span>

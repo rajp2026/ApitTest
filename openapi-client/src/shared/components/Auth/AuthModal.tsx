@@ -22,7 +22,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setLoading(true);
     setError(null);
 
-    debugger;
     try {
       if (isLogin) {
         const data = await login(email, password);

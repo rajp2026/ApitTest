@@ -10,6 +10,9 @@ const Navbar = ({ onAuthClick }: NavbarProps) => {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
 
+  const workspace = () => {
+    console.log('workspace');
+  }
 
   return (
     <nav className="w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800 sticky top-0 left-0 z-50">
@@ -29,7 +32,7 @@ const Navbar = ({ onAuthClick }: NavbarProps) => {
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8">
-          <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Workspace</a>
+          <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors" onClick={() => {workspace}} >Workspace</a>
           <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Collections</a>
           <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Docs</a>
         </div>

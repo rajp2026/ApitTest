@@ -3,23 +3,38 @@ import Navbar from "@/shared/components/navbar/navbar"
 import RequestPanel from '@/shared/components/RequestBuilder/RequestPanel';
 import ResponsePanel from '@/shared/components/ResponseBuilder/ResponsePanel';
 import SidebarHistory from '@/shared/components/Sidebar/SidebarHistory';
+import SidebarWorkspaces from '@/shared/components/Sidebar/SidebarWorkspaces';
 import AuthModal from '@/shared/components/Auth/AuthModal';
-import { useAuth } from '@/shared/contexts/AuthContext';
 
 function App() {
-  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'history' | 'workspaces'>('workspaces');
+  const [activeSavedRequest, setActiveSavedRequest] = useState<any>(null);
   
   // Lifted state for the active request
   const [method, setMethod] = useState<any>('GET');
   const [url, setUrl] = useState('');
+  const [body, setBody] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleHistoryClick = (item: any) => {
-    setMethod(item.method);
-    setUrl(item.url);
+  const handleRefreshWorkspaces = () => setRefreshKey(prev => prev + 1);
+
+  const resetRequest = () => {
+    setMethod('GET');
+    setUrl('');
+    setBody('');
+    setActiveSavedRequest(null);
+  };
+
+  const handleRequestSelect = (item: any) => {
+    setMethod(item.method || 'GET');
+    setUrl(item.url || '');
+    setBody(item.body || '');
+    // Track the active saved request (from collections)
+    setActiveSavedRequest(item.collection_id ? item : null);
   };
 
   return (
@@ -29,16 +44,34 @@ function App() {
       <main className="flex-1 flex overflow-hidden">
         {/* SIDEBAR (HISTORY / COLLECTIONS) */}
         <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-gray-900 border-r border-gray-800 transition-all duration-300 overflow-hidden flex flex-col`}>
-          <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-950/20">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">History</h2>
-            <button className={`${!user ? 'opacity-0 pointer-events-none' : ''} text-gray-500 hover:text-blue-400 transition-colors`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-              </svg>
+          <div className="flex border-b border-gray-800 bg-gray-950/20">
+            <button 
+              onClick={() => setSidebarTab('workspaces')}
+              className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${sidebarTab === 'workspaces' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Workspaces
+            </button>
+            <button 
+              onClick={() => setSidebarTab('history')}
+              className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${sidebarTab === 'history' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              History
             </button>
           </div>
           
-          <SidebarHistory onItemClick={handleHistoryClick} />
+          <div className="flex-1 overflow-hidden flex flex-col">
+            {sidebarTab === 'history' ? (
+              <SidebarHistory onItemClick={handleRequestSelect} onAuthClick={() => setAuthModalOpen(true)} />
+            ) : (
+              <SidebarWorkspaces 
+                onSelectRequest={handleRequestSelect} 
+                onAuthClick={() => setAuthModalOpen(true)}
+                activeRequestId={activeSavedRequest?.id}
+                refreshKey={refreshKey}
+                onCreateRequest={resetRequest}
+              />
+            )}
+          </div>
         </aside>
 
         {/* WORKSPACE */}
@@ -65,6 +98,14 @@ function App() {
                   setMethod={setMethod}
                   url={url}
                   setUrl={setUrl}
+                  body={body}
+                  setBody={setBody}
+                  activeSavedRequest={activeSavedRequest}
+                  onSavedRequestUpdate={(req: any) => {
+                    setActiveSavedRequest(req);
+                    handleRefreshWorkspaces();
+                  }}
+                  onNewRequest={resetRequest}
                 />
               </div>
               <div className="flex-1 h-full">

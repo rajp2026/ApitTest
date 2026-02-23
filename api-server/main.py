@@ -14,8 +14,9 @@ import httpx
 app = FastAPI()
 
 from schemas import (
-    # ItemBase, ItemCreate, ItemRead, 
-    UserCreate, UserResponse, Token, ProxyRequest, RequestHistoryResponse
+    UserCreate, UserResponse, Token, ProxyRequest, RequestHistoryResponse,
+    WorkspaceCreate, WorkspaceResponse, CollectionCreate, CollectionResponse,
+    SavedRequestCreate, SavedRequestResponse, SavedRequestUpdate
 )
 
 origins = [
@@ -171,16 +172,156 @@ def read_root():
 def health_check():
     return {"status": "ok"}
 
-# @app.post("/items/", response_model=ItemRead)
-# async def create_item(item: ItemCreate, db: AsyncSession = Depends(get_db)):
-#     db_item = Item(**item.dict())
-#     db.add(db_item)
-#     await db.commit()
-#     await db.refresh(db_item)
-#     return db_item
+# Workspace Endpoints
+@app.post("/workspaces", response_model=WorkspaceResponse)
+async def create_workspace(
+    workspace: WorkspaceCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    db_workspace = models.Workspace(**workspace.dict(), user_id=current_user.id)
+    db.add(db_workspace)
+    await db.commit()
+    await db.refresh(db_workspace)
+    return db_workspace
 
-# @app.get("/items/", response_model=List[ItemRead])
-# async def read_items(db: AsyncSession = Depends(get_db)):
-#     result = await db.execute(select(Item))
-#     items = result.scalars().all()
-#     return items
+@app.get("/workspaces", response_model=List[WorkspaceResponse])
+async def get_workspaces(
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(models.Workspace).where(models.Workspace.user_id == current_user.id)
+    )
+    return result.scalars().all()
+
+@app.delete("/workspaces/{workspace_id}")
+async def delete_workspace(
+    workspace_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(models.Workspace).where(
+            models.Workspace.id == workspace_id, 
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    db_workspace = result.scalars().first()
+    if not db_workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    await db.delete(db_workspace)
+    await db.commit()
+    return {"message": "Workspace deleted"}
+
+# Collection Endpoints
+@app.post("/collections", response_model=CollectionResponse)
+async def create_collection(
+    collection: CollectionCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify workspace belongs to user
+    ws_result = await db.execute(
+        select(models.Workspace).where(
+            models.Workspace.id == collection.workspace_id,
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    if not ws_result.scalars().first():
+        raise HTTPException(status_code=403, detail="Not authorized to add to this workspace")
+
+    db_collection = models.Collection(**collection.dict())
+    db.add(db_collection)
+    await db.commit()
+    await db.refresh(db_collection)
+    return db_collection
+
+@app.get("/workspaces/{workspace_id}/collections", response_model=List[CollectionResponse])
+async def get_collections(
+    workspace_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(models.Collection)
+        .join(models.Workspace)
+        .where(
+            models.Collection.workspace_id == workspace_id,
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    return result.scalars().all()
+
+# Saved Request Endpoints
+@app.post("/saved-requests", response_model=SavedRequestResponse)
+async def create_saved_request(
+    request: SavedRequestCreate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify collection belongs to a workspace owned by the user
+    col_result = await db.execute(
+        select(models.Collection)
+        .join(models.Workspace)
+        .where(
+            models.Collection.id == request.collection_id,
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    if not col_result.scalars().first():
+        raise HTTPException(status_code=403, detail="Not authorized to add to this collection")
+
+    db_request = models.SavedRequest(**request.dict())
+    db.add(db_request)
+    await db.commit()
+    await db.refresh(db_request)
+    return db_request
+
+@app.get("/collections/{collection_id}/requests", response_model=List[SavedRequestResponse])
+async def get_saved_requests(
+    collection_id: int,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(models.SavedRequest)
+        .join(models.Collection)
+        .join(models.Workspace)
+        .where(
+            models.SavedRequest.collection_id == collection_id,
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    return result.scalars().all()
+
+@app.put("/saved-requests/{request_id}", response_model=SavedRequestResponse)
+async def update_saved_request(
+    request_id: int,
+    request_update: SavedRequestUpdate,
+    current_user: Annotated[models.User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify ownership and find the request
+    result = await db.execute(
+        select(models.SavedRequest)
+        .join(models.Collection)
+        .join(models.Workspace)
+        .where(
+            models.SavedRequest.id == request_id,
+            models.Workspace.user_id == current_user.id
+        )
+    )
+    db_request = result.scalars().first()
+    if not db_request:
+        raise HTTPException(status_code=404, detail="Saved request not found")
+
+    # Update fields
+    update_data = request_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_request, key, value)
+
+    await db.commit()
+    await db.refresh(db_request)
+    return db_request
