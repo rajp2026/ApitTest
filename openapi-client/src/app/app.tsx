@@ -89,7 +89,7 @@ function App() {
            </div>
 
            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
-              <div className="flex-1 h-full">
+              <div className="flex-[2] h-full transition-all duration-500">
                 <RequestPanel 
                   onResponse={setResponse} 
                   loading={loading} 
@@ -108,7 +108,7 @@ function App() {
                   onNewRequest={resetRequest}
                 />
               </div>
-              <div className="flex-1 h-full">
+              <div className="flex-1 h-full transition-all duration-500">
                 <ResponsePanel response={response} />
               </div>
            </div>
