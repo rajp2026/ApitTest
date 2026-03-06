@@ -32,7 +32,6 @@ async def proxy_request(
                     kwargs["json"] = request.body
                 else:
                     kwargs["content"] = str(request.body)
-
             response = await client.request(**kwargs)
             resp_headers = {k: v for k, v in response.headers.items()}
             

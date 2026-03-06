@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import or_
 from typing import List, Annotated
 
 from app.core.database import get_db
@@ -19,17 +20,30 @@ async def save_request(
     current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    # Verify collection belongs to user via workspace
-    col_result = await db.execute(
-        select(Collection)
-        .join(Workspace)
-        .where(
-            Collection.id == request.collection_id,
-            Workspace.user_id == current_user.id
+    if request.collection_id:
+        # Verify collection belongs to user via workspace
+        col_result = await db.execute(
+            select(Collection)
+            .join(Workspace)
+            .where(
+                Collection.id == request.collection_id,
+                Workspace.user_id == current_user.id
+            )
         )
-    )
-    if not col_result.scalars().first():
-        raise HTTPException(status_code=403, detail="Not authorized to add to this collection")
+        if not col_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Not authorized to add to this collection")
+    elif request.workspace_id:
+        # Verify workspace belongs to user
+        ws_result = await db.execute(
+            select(Workspace).where(
+                Workspace.id == request.workspace_id,
+                Workspace.user_id == current_user.id
+            )
+        )
+        if not ws_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Not authorized to add to this workspace")
+    else:
+        raise HTTPException(status_code=400, detail="Either collection_id or workspace_id is required")
 
     db_request = SavedRequest(**request.dict())
     db.add(db_request)
@@ -54,6 +68,24 @@ async def get_saved_requests(
     )
     return result.scalars().all()
 
+@router.get("/workspaces/{workspace_id}/requests", response_model=List[SavedRequestResponse])
+async def get_workspace_requests(
+    workspace_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Get requests that belong directly to a workspace (not in any collection)."""
+    result = await db.execute(
+        select(SavedRequest)
+        .join(Workspace)
+        .where(
+            SavedRequest.workspace_id == workspace_id,
+            SavedRequest.collection_id == None,
+            Workspace.user_id == current_user.id
+        )
+    )
+    return result.scalars().all()
+
 @router.put("/saved-requests/{request_id}", response_model=SavedRequestResponse)
 async def update_saved_request_endpoint(
     request_id: int,
@@ -61,20 +93,38 @@ async def update_saved_request_endpoint(
     current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    # Verify ownership
+    # Verify ownership - request can belong to a collection or directly to a workspace
     result = await db.execute(
-        select(SavedRequest)
-        .join(Collection)
-        .join(Workspace)
-        .where(
-            SavedRequest.id == request_id,
-            Workspace.user_id == current_user.id
-        )
+        select(SavedRequest).where(SavedRequest.id == request_id)
     )
     db_request = result.scalars().first()
     if not db_request:
         raise HTTPException(status_code=404, detail="Request not found")
-    
+
+    # Verify user owns the workspace (via collection or directly)
+    if db_request.collection_id:
+        col_result = await db.execute(
+            select(Collection)
+            .join(Workspace)
+            .where(
+                Collection.id == db_request.collection_id,
+                Workspace.user_id == current_user.id
+            )
+        )
+        if not col_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Not authorized")
+    elif db_request.workspace_id:
+        ws_result = await db.execute(
+            select(Workspace).where(
+                Workspace.id == db_request.workspace_id,
+                Workspace.user_id == current_user.id
+            )
+        )
+        if not ws_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Not authorized")
+    else:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     update_data = request_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_request, key, value)

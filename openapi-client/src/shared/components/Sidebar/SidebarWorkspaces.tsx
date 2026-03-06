@@ -7,6 +7,8 @@ import {
   createCollection, 
   getSavedRequests,
   createSavedRequest,
+  getWorkspaceRequests,
+  createWorkspaceRequest,
   type Workspace,
   type Collection,
   type SavedRequest 
@@ -36,6 +38,7 @@ export default function SidebarWorkspaces({
   const [expandedCollections, setExpandedCollections] = useState<Record<number, boolean>>({});
   const [workspaceCollections, setWorkspaceCollections] = useState<Record<number, Collection[]>>({});
   const [collectionRequests, setCollectionRequests] = useState<Record<number, SavedRequest[]>>({});
+  const [workspaceDirectRequests, setWorkspaceDirectRequests] = useState<Record<number, SavedRequest[]>>({});
   const [creatingWs, setCreatingWs] = useState(false);
 
   const fetchWorkspaces = useCallback(async () => {
@@ -57,6 +60,15 @@ export default function SidebarWorkspaces({
         if (isExpanded) {
           getSavedRequests(token, Number(colId)).then(reqs => {
             setCollectionRequests(prev => ({ ...prev, [Number(colId)]: reqs }));
+          }).catch(console.error);
+        }
+      });
+
+      // Refresh expanded workspace direct requests
+      Object.entries(expandedWorkspaces).forEach(([wsId, isExpanded]) => {
+        if (isExpanded) {
+          getWorkspaceRequests(token, Number(wsId)).then(reqs => {
+            setWorkspaceDirectRequests(prev => ({ ...prev, [Number(wsId)]: reqs }));
           }).catch(console.error);
         }
       });
@@ -85,12 +97,17 @@ export default function SidebarWorkspaces({
     const isExpanded = !!expandedWorkspaces[wsId];
     setExpandedWorkspaces(prev => ({ ...prev, [wsId]: !isExpanded }));
 
-    if (!isExpanded && !workspaceCollections[wsId] && token) {
+    if (!isExpanded && token) {
       try {
-        const data = await getCollections(token, wsId);
-        setWorkspaceCollections(prev => ({ ...prev, [wsId]: data }));
+        if (!workspaceCollections[wsId]) {
+          const data = await getCollections(token, wsId);
+          setWorkspaceCollections(prev => ({ ...prev, [wsId]: data }));
+        }
+        // Also fetch workspace-level requests
+        const wsReqs = await getWorkspaceRequests(token, wsId);
+        setWorkspaceDirectRequests(prev => ({ ...prev, [wsId]: wsReqs }));
       } catch (err) {
-        console.error('Failed to fetch collections', err);
+        console.error('Failed to fetch workspace data', err);
       }
     }
   };
@@ -113,6 +130,8 @@ export default function SidebarWorkspaces({
   const [newColName, setNewColName] = useState('');
   const [creatingRequestIn, setCreatingRequestIn] = useState<number | null>(null);
   const [newReqName, setNewReqName] = useState('');
+  const [creatingRequestInWs, setCreatingRequestInWs] = useState<number | null>(null);
+  const [newWsReqName, setNewWsReqName] = useState('');
 
   const handleCreateCollection = async (wsId: number) => {
     if (!token || !newColName.trim()) return;
@@ -147,6 +166,36 @@ export default function SidebarWorkspaces({
       onSelectRequest(data);
     } catch (err) {
       console.error('Failed to create request', err);
+    }
+  };
+
+  const handleCreateRequestInWorkspace = async (wsId: number) => {
+    if (!token || !newWsReqName.trim()) return;
+    try {
+      // Create request directly in the workspace (no collection)
+      const data = await createWorkspaceRequest(token, wsId, {
+        name: newWsReqName,
+        method: 'GET',
+        url: '',
+        headers: {},
+        body: ''
+      });
+
+      setNewWsReqName('');
+      setCreatingRequestInWs(null);
+
+      // Auto-expand the workspace
+      setExpandedWorkspaces(prev => ({ ...prev, [wsId]: true }));
+
+      // Refresh workspace-level requests
+      const reqs = await getWorkspaceRequests(token, wsId);
+      setWorkspaceDirectRequests(prev => ({ ...prev, [wsId]: reqs }));
+
+      // Select the new request
+      onSelectRequest(data);
+      if (onCreateRequest) onCreateRequest();
+    } catch (err) {
+      console.error('Failed to create request in workspace', err);
     }
   };
 
@@ -227,15 +276,42 @@ export default function SidebarWorkspaces({
                 </svg>
                 <span className="text-xs font-medium text-gray-300">{ws.name}</span>
               </div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setCreatingCollectionIn(ws.id); }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:text-blue-400 transition-all"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCreatingCollectionIn(ws.id); setCreatingRequestInWs(null); }}
+                  className="p-1 hover:text-yellow-400 text-gray-500 hover:bg-gray-800 rounded transition-all"
+                  title="Add Collection"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setCreatingRequestInWs(ws.id); setCreatingCollectionIn(null); }}
+                  className="p-1 hover:text-blue-400 text-gray-500 hover:bg-gray-800 rounded transition-all"
+                  title="Add Request"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </button>
+              </div>
             </button>
+
+            {/* Inline request name input at workspace level */}
+            {creatingRequestInWs === ws.id && (
+              <div className="ml-6 p-2 space-y-2">
+                <input
+                  autoFocus
+                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="New Request Name"
+                  value={newWsReqName}
+                  onChange={(e) => setNewWsReqName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRequestInWorkspace(ws.id)}
+                  onBlur={() => !newWsReqName && setCreatingRequestInWs(null)}
+                />
+              </div>
+            )}
 
             {expandedWorkspaces[ws.id] && (
               <div className="ml-6 space-y-1">
@@ -252,6 +328,38 @@ export default function SidebarWorkspaces({
                     />
                   </div>
                 )}
+
+                {/* Workspace-level requests (not in any collection) */}
+                {workspaceDirectRequests[ws.id]?.map(req => (
+                  <button
+                    key={req.id}
+                    onClick={() => onSelectRequest(req)}
+                    className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all group whitespace-nowrap overflow-hidden ${
+                      activeRequestId === req.id 
+                        ? 'bg-blue-600/10 border border-blue-500/20' 
+                        : 'hover:bg-gray-800/20 border border-transparent'
+                    }`}
+                  >
+                    <span className={`text-[8px] font-bold w-9 flex-shrink-0 text-left py-0.5 ${
+                      req.method === 'GET' ? 'text-green-400' :
+                      req.method === 'POST' ? 'text-yellow-400' :
+                      req.method === 'PUT' ? 'text-blue-400' :
+                      req.method === 'PATCH' ? 'text-purple-400' :
+                      req.method === 'DELETE' ? 'text-red-400' :
+                      req.method === 'HEAD' ? 'text-gray-400' :
+                      'text-cyan-400'
+                    }`}>
+                      {req.method}
+                    </span>
+                    <span className={`text-[10px] truncate transition-colors flex-1 ${
+                      activeRequestId === req.id ? 'text-blue-400 font-medium' : 'text-gray-500 group-hover:text-gray-300'
+                    }`}>
+                      {req.name}
+                    </span>
+                  </button>
+                ))}
+
+                {/* Collections */}
                 {workspaceCollections[ws.id]?.map(col => (
                   <div key={col.id} className="space-y-1">
                     <div className="relative group">

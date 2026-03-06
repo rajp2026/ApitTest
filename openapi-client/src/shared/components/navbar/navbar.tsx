@@ -4,22 +4,22 @@ import { useAuth } from "@/shared/contexts/AuthContext";
 
 interface NavbarProps {
   onAuthClick: () => void;
+  onNavigate: (view: 'app' | 'docs') => void;
 }
 
-const Navbar = ({ onAuthClick }: NavbarProps) => {
+const Navbar = ({ onAuthClick, onNavigate }: NavbarProps) => {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
-
-  const workspace = () => {
-    console.log('workspace');
-  }
 
   return (
     <nav className="w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800 sticky top-0 left-0 z-50">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         
         {/* Logo */}
-        <div className="flex items-center gap-2">
+        <div 
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => onNavigate('app')}
+        >
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -32,9 +32,9 @@ const Navbar = ({ onAuthClick }: NavbarProps) => {
 
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-8">
-          <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors" onClick={() => {workspace}} >Workspace</a>
-          <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Collections</a>
-          <a href="#" className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Docs</a>
+          <button onClick={() => onNavigate('app')} className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Workspace</button>
+          <button onClick={() => onNavigate('app')} className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Collections</button>
+          <button onClick={() => onNavigate('docs')} className="text-sm font-medium text-gray-400 hover:text-white transition-colors">Docs</button>
         </div>
 
         {/* Auth Buttons */}
@@ -76,8 +76,9 @@ const Navbar = ({ onAuthClick }: NavbarProps) => {
       {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-gray-800 bg-gray-950 px-6 py-6 space-y-6">
-          <a href="#" className="block text-gray-400 hover:text-white">Workspace</a>
-          <a href="#" className="block text-gray-400 hover:text-white">Collections</a>
+          <button onClick={() => { onNavigate('app'); setOpen(false); }} className="block w-full text-left text-gray-400 hover:text-white">Workspace</button>
+          <button onClick={() => { onNavigate('app'); setOpen(false); }} className="block w-full text-left text-gray-400 hover:text-white">Collections</button>
+          <button onClick={() => { onNavigate('docs'); setOpen(false); }} className="block w-full text-left text-gray-400 hover:text-white">Docs</button>
           {user ? (
              <div className="pt-4 border-t border-gray-800 space-y-4">
                <p className="text-sm text-blue-400">{user.email}</p>

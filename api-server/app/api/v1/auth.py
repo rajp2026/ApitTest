@@ -15,7 +15,6 @@ async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == user.email))
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
     hashed_password = security.get_password_hash(user.password)
     db_user = User(email=user.email, hashed_password=hashed_password)
     db.add(db_user)

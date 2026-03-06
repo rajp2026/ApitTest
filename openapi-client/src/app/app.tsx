@@ -1,12 +1,34 @@
 import { useState } from 'react';
 import Navbar from "@/shared/components/navbar/navbar"
-import RequestPanel from '@/shared/components/RequestBuilder/RequestPanel';
+import RequestPanel, { type KeyValuePair } from '@/shared/components/RequestBuilder/RequestPanel';
 import ResponsePanel from '@/shared/components/ResponseBuilder/ResponsePanel';
 import SidebarHistory from '@/shared/components/Sidebar/SidebarHistory';
 import SidebarWorkspaces from '@/shared/components/Sidebar/SidebarWorkspaces';
 import AuthModal from '@/shared/components/Auth/AuthModal';
+import DocsPage from './DocsPage';
+
+const createEmptyPair = (): KeyValuePair => ({
+  id: crypto.randomUUID(),
+  key: '',
+  value: '',
+  enabled: true,
+});
+
+// Convert a plain {key: value} object into KeyValuePair[]
+const objToPairs = (obj?: Record<string, string> | null): KeyValuePair[] => {
+  if (!obj || Object.keys(obj).length === 0) return [createEmptyPair()];
+  const pairs: KeyValuePair[] = Object.entries(obj).map(([key, value]) => ({
+    id: crypto.randomUUID(),
+    key,
+    value,
+    enabled: true,
+  }));
+  pairs.push(createEmptyPair());
+  return pairs;
+};
 
 function App() {
+  const [currentView, setCurrentView] = useState<'app' | 'docs'>('app');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [response, setResponse] = useState<any>(null);
@@ -18,6 +40,8 @@ function App() {
   const [method, setMethod] = useState<any>('GET');
   const [url, setUrl] = useState('');
   const [body, setBody] = useState('');
+  const [headers, setHeaders] = useState<KeyValuePair[]>([createEmptyPair()]);
+  const [params, setParams] = useState<KeyValuePair[]>([createEmptyPair()]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefreshWorkspaces = () => setRefreshKey(prev => prev + 1);
@@ -26,6 +50,8 @@ function App() {
     setMethod('GET');
     setUrl('');
     setBody('');
+    setHeaders([createEmptyPair()]);
+    setParams([createEmptyPair()]);
     setActiveSavedRequest(null);
   };
 
@@ -33,18 +59,38 @@ function App() {
     setMethod(item.method || 'GET');
     setUrl(item.url || '');
     setBody(item.body || '');
-    // Track the active saved request (from collections)
-    setActiveSavedRequest(item.collection_id ? item : null);
+    setHeaders(objToPairs(item.headers));
+    setParams([createEmptyPair()]); // params aren't saved in the DB, reset them
+    // Track the active saved request (from collections or workspace)
+    setActiveSavedRequest((item.collection_id || item.workspace_id) ? item : null);
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white selection:bg-blue-500/30 flex flex-col">
-      <Navbar onAuthClick={() => setAuthModalOpen(true)} />
+      <Navbar onAuthClick={() => setAuthModalOpen(true)} onNavigate={setCurrentView} />
 
+      {currentView === 'docs' ? (
+        <DocsPage />
+      ) : (
       <main className="flex-1 flex overflow-hidden">
         {/* SIDEBAR (HISTORY / COLLECTIONS) */}
+        {/* Sidebar reopen strip when closed */}
+        {!sidebarOpen && (
+          <div className="flex flex-col items-center bg-gray-900 border-r border-gray-800 py-3 px-1">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-all"
+              title="Open sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         <aside className={`${sidebarOpen ? 'w-80' : 'w-0'} bg-gray-900 border-r border-gray-800 transition-all duration-300 overflow-hidden flex flex-col`}>
-          <div className="flex border-b border-gray-800 bg-gray-950/20">
+          <div className="flex items-center border-b border-gray-800 bg-gray-950/20">
             <button 
               onClick={() => setSidebarTab('workspaces')}
               className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${sidebarTab === 'workspaces' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-gray-500 hover:text-gray-300'}`}
@@ -56,6 +102,15 @@ function App() {
               className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${sidebarTab === 'history' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5' : 'text-gray-500 hover:text-gray-300'}`}
             >
               History
+            </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 mx-1 text-gray-500 hover:text-white hover:bg-gray-800 rounded-lg transition-all flex-shrink-0"
+              title="Close sidebar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
             </button>
           </div>
           
@@ -76,17 +131,6 @@ function App() {
 
         {/* WORKSPACE */}
         <section className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden gap-6">
-           <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 bg-gray-900 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition-all shadow-lg"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-              <h1 className="text-xl font-bold tracking-tight text-white/90">Request Workspace</h1>
-           </div>
 
            <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
               <div className="flex-[2] h-full transition-all duration-500">
@@ -100,6 +144,10 @@ function App() {
                   setUrl={setUrl}
                   body={body}
                   setBody={setBody}
+                  headers={headers}
+                  setHeaders={setHeaders}
+                  params={params}
+                  setParams={setParams}
                   activeSavedRequest={activeSavedRequest}
                   onSavedRequestUpdate={(req: any) => {
                     setActiveSavedRequest(req);
@@ -114,6 +162,7 @@ function App() {
            </div>
         </section>
       </main>
+      )}
 
       <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>

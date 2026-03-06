@@ -5,11 +5,10 @@ from app.core.database import engine, Base
 
 app = FastAPI(title="ApiTest API")
 
+from app.core.config import settings
+
 # CORS configuration
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+origins = settings.cors_origins_list
 
 app.add_middleware(
     CORSMiddleware,

@@ -22,7 +22,8 @@ export default function SidebarHistory({ onItemClick, onAuthClick }: SidebarHist
     if (!token) return;
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/history', {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {

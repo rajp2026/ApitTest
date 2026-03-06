@@ -12,7 +12,9 @@ class SavedRequest(Base):
     url = Column(String, nullable=False)
     headers = Column(JSON, nullable=True)
     body = Column(Text, nullable=True)
-    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=False)
+    collection_id = Column(Integer, ForeignKey("collections.id"), nullable=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     collection = relationship("Collection", back_populates="requests")
+    workspace = relationship("Workspace", back_populates="requests")

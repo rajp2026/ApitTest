@@ -14,3 +14,4 @@ class Workspace(Base):
 
     user = relationship("User", back_populates="workspaces")
     collections = relationship("Collection", back_populates="workspace", cascade="all, delete-orphan")
+    requests = relationship("SavedRequest", back_populates="workspace", cascade="all, delete-orphan")

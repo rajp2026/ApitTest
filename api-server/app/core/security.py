@@ -1,20 +1,32 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import hashlib
+import base64
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
-# Configuration should ideally be in a separate config file
-SECRET_KEY = "your-secret-key-for-jwt-tokens" 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
+from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def _prehash(password: str) -> bytes:
+    """Pre-hash password with SHA-256 to safely handle bcrypt's 72-byte limit."""
+    hashed = hashlib.sha256(password.encode("utf-8")).digest()
+    return base64.b64encode(hashed)
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(
+        _prehash(plain_password),
+        hashed_password.encode("utf-8")
+    )
+
+def get_password_hash(password: str) -> str:
+    return bcrypt.hashpw(
+        _prehash(password),
+        bcrypt.gensalt()
+    ).decode("utf-8")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

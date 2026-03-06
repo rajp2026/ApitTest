@@ -10,7 +10,8 @@ class SavedRequestBase(BaseModel):
     body: Optional[str] = None
 
 class SavedRequestCreate(SavedRequestBase):
-    collection_id: int
+    collection_id: Optional[int] = None
+    workspace_id: Optional[int] = None
 
 class SavedRequestUpdate(BaseModel):
     name: Optional[str] = None
@@ -21,7 +22,8 @@ class SavedRequestUpdate(BaseModel):
 
 class SavedRequestResponse(SavedRequestBase):
     id: int
-    collection_id: int
+    collection_id: Optional[int] = None
+    workspace_id: Optional[int] = None
     created_at: datetime
     class Config:
         from_attributes = True

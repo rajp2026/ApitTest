@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export interface Workspace {
   id: number;
@@ -22,7 +22,8 @@ export interface SavedRequest {
   url: string;
   headers?: any;
   body?: string;
-  collection_id: number;
+  collection_id?: number;
+  workspace_id?: number;
   created_at: string;
 }
 
@@ -94,6 +95,27 @@ export const createSavedRequest = async (token: string, collectionId: number, re
     body: JSON.stringify({ ...request, collection_id: collectionId }),
   });
   if (!response.ok) throw new Error('Failed to save request');
+  return response.json();
+};
+
+export const getWorkspaceRequests = async (token: string, workspaceId: number): Promise<SavedRequest[]> => {
+  const response = await fetch(`${API_BASE_URL}/workspaces/${workspaceId}/requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch workspace requests');
+  return response.json();
+};
+
+export const createWorkspaceRequest = async (token: string, workspaceId: number, request: any): Promise<SavedRequest> => {
+  const response = await fetch(`${API_BASE_URL}/saved-requests`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ ...request, workspace_id: workspaceId }),
+  });
+  if (!response.ok) throw new Error('Failed to save workspace request');
   return response.json();
 };
 export const updateSavedRequest = async (token: string, id: number, request: any): Promise<SavedRequest> => {
