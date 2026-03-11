@@ -4,7 +4,7 @@ sqlalchemy
 alembic
 asyncpg
 pydantic-settings
-
+mangum
 pydantic
 httpx
 bcrypt
