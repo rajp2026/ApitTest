@@ -4,11 +4,9 @@ sqlalchemy
 alembic
 asyncpg
 pydantic-settings
-mangum
 pydantic
 httpx
 bcrypt
 python-jose[cryptography]
 python-multipart
 email-validator
-vercel
