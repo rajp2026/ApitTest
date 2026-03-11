@@ -32,9 +32,9 @@ export default function ResponsePanel({ response }: ResponsePanelProps) {
         )}
       </div>
 
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="h-full rounded-xl bg-gray-950/50 border border-gray-800 p-4 relative group">
-            <pre className={`text-sm font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap ${isError ? 'text-red-400' : 'text-gray-300'}`}>
+      <div className="flex-1 p-6 overflow-auto min-w-0">
+        <div className="h-full rounded-xl bg-gray-950/50 border border-gray-800 p-4 relative group min-w-0 max-w-full">
+            <pre className={`text-sm font-mono leading-relaxed whitespace-pre-wrap break-all min-w-0 ${isError ? 'text-red-400' : 'text-gray-300'}`}>
               {JSON.stringify(isError ? response.error : response.data, null, 2)}
             </pre>
         </div>
