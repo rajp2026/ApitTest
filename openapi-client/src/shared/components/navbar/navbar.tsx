@@ -26,7 +26,7 @@ const Navbar = ({ onAuthClick, onNavigate }: NavbarProps) => {
              </svg>
           </div>
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
-            ApitTest
+            ApiTest
           </span>
         </div>
 
