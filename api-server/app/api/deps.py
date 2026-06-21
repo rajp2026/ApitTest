@@ -10,6 +10,7 @@ from app.core import security
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -31,7 +32,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: As
         raise credentials_exception
     return user
 
-async def get_optional_user(token: Annotated[Optional[str], Depends(oauth2_scheme)] = None, db: AsyncSession = Depends(get_db)):
+async def get_optional_user(token: Annotated[Optional[str], Depends(oauth2_scheme_optional)] = None, db: AsyncSession = Depends(get_db)):
     if not token or token == "undefined" or token == "null":
         return None
     try:
