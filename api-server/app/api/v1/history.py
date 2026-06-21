@@ -25,7 +25,8 @@ async def proxy_request(
                 "method": request.method.upper(),
                 "url": request.url,
                 "headers": request.headers,
-                "timeout": 30.0
+                "timeout": 60.0,
+                "follow_redirects": True
             }
             if request.body:
                 if isinstance(request.body, dict):
